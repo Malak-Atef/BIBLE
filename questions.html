@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الأسئلة - وقتي مع ربنا</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <!-- إضافة Font Awesome -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Cairo', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            text-align: center;
+        }
+        #header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #questionTitle {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .question {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background-color: #ffffff;
+            text-align: right;
+        }
+        .btn {
+            margin: 5px;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="questionTitle">الأسئلة <i class="fas fa-question-circle"></i></h2> <!-- إضافة رمز الأسئلة -->
+
+        <div id="questionsContainer"></div>
+
+        <button id="submitAnswersBtn" class="btn btn-success">
+            <i class="fas fa-paper-plane"></i> تسليم الإجابات
+        </button> <!-- إضافة رمز تسليم -->
+        
+        <button id="goToChapterBtn" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> ارجع للإصحاح
+        </button> <!-- إضافة رمز العودة -->
+
+        <button id="logoutBtn" class="btn btn-danger">
+            <i class="fas fa-sign-out-alt"></i> تسجيل خروج
+        </button> <!-- إضافة رمز الخروج -->
+    </div>
+
+    <!-- Toast message -->
+    <div class="toast" id="toastMessage" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-body"></div>
+    </div>
+
+    <script type="module">
+        // استيراد مكتبات Firebase الضرورية
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, increment, query, where, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        // إعداد Firebase باستخدام الإعدادات التي قدمتها
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhn_98Cfaai7Et5H3qJwtZnJZPhOAnsLw",
+            authDomain: "bible-app-7c4d2.firebaseapp.com",
+            projectId: "bible-app-7c4d2",
+            storageBucket: "bible-app-7c4d2.appspot.com",
+            messagingSenderId: "127229574852",
+            appId: "1:127229574852:web:bf2732e3f2ee4c27ced391",
+            measurementId: "G-C8WF86ZSYY"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+// دالة لتحميل الأسئلة من Firestore
+async function loadQuestions() {
+    const questionsRef = collection(db, "questions");
+    const questionsSnap = await getDocs(questionsRef);
+    const questionsContainer = document.getElementById("questionsContainer");
+
+    const allQuestions = [];
+
+    // إضافة جميع الأسئلة من قاعدة البيانات إلى مصفوفة
+    questionsSnap.forEach(doc => {
+        allQuestions.push({ id: doc.id, ...doc.data() });
+    });
+
+    // التحقق من وجود 7 أسئلة على الأقل
+    if (allQuestions.length >= 3) {
+        // اختيار 3 أسئلة عشوائية
+        const selectedQuestions = [];
+        while (selectedQuestions.length < 3) {
+            const randomIndex = Math.floor(Math.random() * allQuestions.length);
+            const question = allQuestions[randomIndex];
+            
+            // التأكد من عدم تكرار السؤال
+            if (!selectedQuestions.includes(question)) {
+                selectedQuestions.push(question);
+            }
+        }
+
+        // عرض الأسئلة المختارة في الواجهة
+        selectedQuestions.forEach(questionData => {
+            const questionDiv = document.createElement("div");
+            questionDiv.className = "question";
+            questionDiv.innerHTML = `
+                <p>${questionData.question}</p>
+                <input type="text" class="form-control" data-question-id="${questionData.id}" placeholder="اكتب إجابتك هنا" required>
+            `;
+            questionsContainer.appendChild(questionDiv);
+        });
+    } else {
+        questionsContainer.innerHTML = "لا توجد أسئلة كافية متاحة.";
+    }
+}
+
+
+
+        // دالة تسجيل الخروج
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html"; // العودة إلى صفحة تسجيل الدخول
+            }).catch((error) => {
+                console.error("خطأ في تسجيل الخروج:", error);
+            });
+        });
+
+        // دالة للذهاب إلى صفحة الإصحاح
+        document.getElementById("goToChapterBtn").addEventListener("click", () => {
+            window.location.href = "chapter.html"; // الانتقال إلى صفحة الإصحاح
+        });
+
+        // دالة لإظهار الرسالة الاحترافية
+        function showToastMessage(message) {
+            const toastBody = document.querySelector('#toastMessage .toast-body');
+            toastBody.textContent = message;
+            const toast = new bootstrap.Toast(document.getElementById('toastMessage'));
+            toast.show();
+        }
+// دالة لتسليم الإجابات
+async function submitAnswers(userId) {
+    const alreadySubmitted = await hasSubmittedToday(userId);
+    if (alreadySubmitted) {
+        showToastMessage("لقد قمت بتقديم إجاباتك اليوم بالفعل. لا يمكنك تقديم المزيد من الدرجات.");
+        return;
+    }
+
+    let totalPoints = 0;
+    const questions = document.querySelectorAll('.question input');
+    const answersData = []; // مصفوفة لتخزين الأسئلة والإجابات
+
+    for (const input of questions) {
+        const answer = input.value.trim();
+        const questionText = input.previousElementSibling.textContent;
+
+        if (!answer) {
+            showToastMessage("يرجى الإجابة على جميع الأسئلة.");
+            return;
+        }
+
+        totalPoints += 5; 
+        answersData.push({
+            question: questionText,
+            answer: answer
+        });
+    }
+
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const username = userData.username;
+
+        const timestamp = new Date();
+        const submissionsRef = collection(db, "submissions");
+
+        await setDoc(doc(submissionsRef), {
+            userId: userId,
+            username: username,
+            answers: answersData,
+            points: totalPoints,
+            date: timestamp
+        });
+
+        await updateDoc(userRef, {
+            points: increment(totalPoints),
+            lastAnsweredDate: timestamp // تحديث حقل lastAnsweredDate بتاريخ اليوم
+        });
+
+        window.location.href = `thankyou.html?points=${totalPoints}`;
+    } else {
+        console.error("لا يوجد مستخدم بهذا المعرف.");
+    }
+}
+
+    // الدالة للتحقق مما إذا كان المستخدم قد قدم إجابات اليوم باستخدام حقل lastAnsweredDate
+async function hasSubmittedToday(userId) {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const lastAnsweredDate = userData.lastAnsweredDate ? userData.lastAnsweredDate.toDate() : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // ضبط وقت اليوم إلى بداية اليوم
+
+        return lastAnsweredDate && lastAnsweredDate.setHours(0, 0, 0, 0) === today.getTime();
+    } else {
+        console.error("لا يوجد مستخدم بهذا المعرف.");
+        return false;
+    }
+}
+
+
+        // التحميل بعد التحقق من المستخدم
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loadQuestions();
+                const userId = user.uid;
+
+                document.getElementById("submitAnswersBtn").addEventListener("click", () => submitAnswers(userId));
+            } else {
+                // الانتقال إلى صفحة تسجيل الدخول إذا لم يكن هناك مستخدم
+                window.location.href = "index.html";
+            }
+        });
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

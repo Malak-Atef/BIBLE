@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإصحاح - وقتي مع ربنا</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <!-- إضافة Font Awesome -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Cairo', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            text-align: center;
+        }
+        #chapterTitle {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        /* تحسين عرض الإصحاح ليكون قابلاً للتمرير */
+        #chapterContent {
+            font-size: 18px;
+            line-height: 1.6;
+            max-height: 400px; /* ارتفاع محدد لمنطقة العرض */
+            overflow-y: auto; /* إضافة تمرير عمودي */
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background-color: #ffffff;
+            text-align: right; /* توجيه النص لليمين */
+        }
+        #welcomeMessage {
+            font-size: 20px;
+            margin-bottom: 30px;
+            color: #28a745;
+        }
+        #userScore {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .btn {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="welcomeMessage">أهلاً, <span id="userName"></span>! <i class="fas fa-smile"></i></h2> <!-- إضافة رمز ابتسامة -->
+
+        <h2>استمتع بكل كلمة من اصحاح انهارده <i class="fas fa-book"></i></h2> <!-- إضافة رمز الكتاب -->
+
+        <h2 id="userScore">درجاتك لحد دلوقتي: <span id="pointsValue">0</span> <i class="fas fa-star"></i></h2> <!-- إضافة رمز نجمة -->
+
+        <h2 id="chapterTitle">عنوان الإصحاح <i class="fas fa-heading"></i></h2> <!-- إضافة رمز العنوان -->
+
+        <div id="chapterContent">محتوى الإصحاح سيظهر هنا...</div>
+
+        <button id="logoutBtn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> تسجيل خروج</button> <!-- إضافة رمز الخروج -->
+        <button id="goToQuestionsBtn" class="btn btn-primary"><i class="fas fa-question-circle"></i> يلا علي الأسئلة</button> <!-- إضافة رمز الأسئلة -->
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhn_98Cfaai7Et5H3qJwtZnJZPhOAnsLw",
+            authDomain: "bible-app-7c4d2.firebaseapp.com",
+            projectId: "bible-app-7c4d2",
+            storageBucket: "bible-app-7c4d2.appspot.com",
+            messagingSenderId: "127229574852",
+            appId: "1:127229574852:web:bf2732e3f2ee4c27ced391",
+            measurementId: "G-C8WF86ZSYY"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        async function loadTodayChapter() {
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0]; 
+
+            const chapterRef = doc(db, "chapters", formattedDate);
+            const chapterSnap = await getDoc(chapterRef);
+
+            if (chapterSnap.exists()) {
+                document.getElementById("chapterTitle").textContent = chapterSnap.data().title; 
+                document.getElementById("chapterContent").innerHTML = chapterSnap.data().content; 
+            } else {
+                console.error("لا توجد وثيقة للإصحاح اليوم");
+                document.getElementById("chapterContent").innerHTML = "لا توجد بيانات للإصحاح اليوم.";
+            }
+        }
+
+        async function loadUserName(userId) {
+            try {
+                const userRef = doc(db, "users", userId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    document.getElementById("userName").textContent = userSnap.data().username || "مستخدم"; 
+                    loadUserPoints(userId); 
+                } else {
+                    console.error("لا توجد بيانات للمستخدم مع الـ userId:", userId);
+                }
+            } catch (error) {
+                console.error("خطأ أثناء تحميل اسم المستخدم:", error);
+            }
+        }
+
+        async function loadUserPoints(userId) {
+            try {
+                const userRef = doc(db, "users", userId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const points = userSnap.data().points || 0; 
+                    document.getElementById("pointsValue").textContent = points; 
+                } else {
+                    console.error("لا توجد بيانات للمستخدم مع الـ userId:", userId);
+                }
+            } catch (error) {
+                console.error("خطأ أثناء تحميل الدرجات:", error);
+            }
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html"; 
+            }).catch((error) => {
+                console.error("خطأ في تسجيل الخروج:", error);
+            });
+        });
+
+        function confirmReading() {
+            console.log("تم تأكيد القراءة."); 
+            window.location.href = "questions.html"; 
+        }
+
+        document.getElementById("goToQuestionsBtn").addEventListener("click", () => {
+            window.location.href = "questions.html"; // الانتقال إلى صفحة الأسئلة
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                await loadUserName(user.uid);
+                loadTodayChapter();
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+    </script>
+</body>
+</html>

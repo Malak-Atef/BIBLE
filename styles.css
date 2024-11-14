@@ -1,0 +1,53 @@
+/* استيراد Bootstrap */
+@import url('https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css');
+
+/* تنسيقات إضافية للصفحة الرئيسية */
+body {
+    background-color: #f7f9fc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Cairo', sans-serif;
+}
+
+.logo {
+
+    max-width: 150px; /* يمكنك تغيير العرض حسب الحاجة */
+    margin-top: 20px;
+    margin-bottom: 20px;
+
+
+}
+
+.login-container {
+    background-color: #f1f4f4;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+h1, h2 {
+    font-weight: bold;
+}
+
+#meetingName {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+#siteName {
+    font-size: 20px;
+    color: #343a40;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+button {
+    width: 100%;
+    margin-top: 10px;
+}

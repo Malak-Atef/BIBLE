@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أفضل 10 درجات - وقتي مع ربنا</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <!-- إضافة Font Awesome -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Cairo', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            text-align: center;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .btn {
+            margin: 5px;
+        }
+        .top-scores-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .score {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2> شكرا لحل الاسئلة <i class="fas fa-check-circle"></i></h2> <!-- إضافة رمز النجاح -->
+        <h2> افتكر دايما ان وقتك مع ربنا هو اساس يومك <i class="fas fa-clock"></i></h2> <!-- إضافة رمز الوقت -->
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title" id="pointsMessage"></h5>
+                <h3 class="card-subtitle mb-2 text-muted">أفضل 10 لحد دلوقتي :</h3>
+                <ul id="topScoresList" class="list-group top-scores-list"></ul>
+            </div>
+        </div>
+        <button id="logoutBtn" class="btn btn-danger">
+            <i class="fas fa-sign-out-alt"></i> تسجيل خروج
+        </button> <!-- إضافة رمز الخروج -->
+
+        <button id="goToChapterBtn" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> ارجع الي الإصحاح
+        </button> <!-- إضافة رمز العودة -->
+    </div>
+    
+
+    <script type="module">
+        // استيراد مكتبات Firebase الضرورية
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        // إعداد Firebase باستخدام الإعدادات التي قدمتها
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhn_98Cfaai7Et5H3qJwtZnJZPhOAnsLw",
+            authDomain: "bible-app-7c4d2.firebaseapp.com",
+            projectId: "bible-app-7c4d2",
+            storageBucket: "bible-app-7c4d2.appspot.com",
+            messagingSenderId: "127229574852",
+            appId: "1:127229574852:web:bf2732e3f2ee4c27ced391",
+            measurementId: "G-C8WF86ZSYY"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // دالة لعرض النقاط التي حصل عليها الشاب وأفضل 10 درجات
+        async function displayPointsAndTopScores() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const points = urlParams.get('points');
+
+            document.getElementById("pointsMessage").innerText = `لقد حصلت على ${points} نقطة!`;
+
+            // تحميل أفضل 10 درجات
+            const scoresRef = collection(db, "users");
+            const scoresSnap = await getDocs(scoresRef);
+            const scoresArray = [];
+
+            scoresSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.points) {
+                    // إضافة بيانات المستخدم مع النقاط
+                    scoresArray.push({ username: data.username, points: data.points });
+                }
+            });
+
+            // فرز الدرجات وتنظيمها
+            scoresArray.sort((a, b) => b.points - a.points);
+            const topScores = scoresArray.slice(0, 10);
+
+            topScores.forEach(score => {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.innerHTML = `<span>${score.username}</span><span class="score">${score.points} نقطة</span>`;
+                document.getElementById("topScoresList").appendChild(li);
+            });
+        }
+
+        // دالة تسجيل الخروج
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html"; // العودة إلى صفحة تسجيل الدخول
+            }).catch((error) => {
+                console.error("خطأ في تسجيل الخروج:", error);
+            });
+        });
+
+        // دالة للذهاب إلى صفحة الإصحاح
+        document.getElementById("goToChapterBtn").addEventListener("click", () => {
+            window.location.href = "chapter.html"; // الانتقال إلى صفحة الإصحاح
+        });
+
+        // استدعاء دالة عرض النقاط وأفضل الدرجات عند تحميل الصفحة
+        displayPointsAndTopScores();
+    </script>
+</body>
+</html>

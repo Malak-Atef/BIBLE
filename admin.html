@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - الأدمن</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Cairo', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            text-align: center;
+        }
+        table {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>تسجيل دخول الخدام <i class="fas fa-user-shield"></i></h2>
+        <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور" class="form-control" />
+        <button id="loginBtn" class="btn btn-primary mt-2">
+            <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+        </button>
+
+        <div id="adminPanel" style="display: none;">
+            <h3>تقارير الإجابات <i class="fas fa-chart-line"></i></h3>
+            <input type="date" id="dateFilter" class="form-control mb-2" />
+            <button id="filterBtn" class="btn btn-secondary mb-4">
+                <i class="fas fa-filter"></i> تصفية حسب التاريخ
+            </button>
+
+            <table class="table table-bordered" id="reportsTable">
+                <thead>
+                    <tr>
+                        <th>اسم الشاب</th>
+                        <th>اسم التحدي</th>
+                        <th>الأيام المتبقية</th>
+                        <th>الأسئلة والإجابات</th>
+                        <th>التاريخ</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="reportsBody"></tbody>
+            </table>
+
+            <h3>الشباب المسجلون <i class="fas fa-users"></i></h3>
+            <table class="table table-bordered" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>اسم الشاب</th>
+                        <th>الدرجات الحالية</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+            </table>
+            <button id="backToHomeBtn" class="btn btn-secondary">
+                <i class="fas fa-home"></i> العودة للصفحة الرئيسية
+            </button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhn_98Cfaai7Et5H3qJwtZnJZPhOAnsLw",
+            authDomain: "bible-app-7c4d2.firebaseapp.com",
+            projectId: "bible-app-7c4d2",
+            storageBucket: "bible-app-7c4d2.appspot.com",
+            messagingSenderId: "127229574852",
+            appId: "1:127229574852:web:bf2732e3f2ee4c27ced391",
+            measurementId: "G-C8WF86ZSYY"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const adminPassword = "123456"; // تأكد من استخدام كلمة مرور آمنة
+
+        // تسجيل الدخول
+        document.getElementById("loginBtn").addEventListener("click", () => {
+            const inputPassword = document.getElementById("adminPassword").value;
+            if (inputPassword === adminPassword) {
+                document.getElementById("adminPanel").style.display = "block";
+                displayReports(); // عرض تقارير اليوم
+                displayUsers();
+            } else {
+                alert("كلمة المرور غير صحيحة!");
+            }
+        });
+
+        // عرض تقارير الشباب
+        async function displayReports(selectedDate) {
+            const reportsRef = collection(db, "submissions");
+            const usersRef = collection(db, "users");
+            const reportsSnap = await getDocs(reportsRef);
+            const usersSnap = await getDocs(usersRef);
+
+            const reportsBody = document.getElementById("reportsBody");
+            reportsBody.innerHTML = "";
+
+            const today = new Date().toISOString().split("T")[0]; // الحصول على تاريخ اليوم بتنسيق YYYY-MM-DD
+
+            let reports = [];
+            let usersData = {};
+            usersSnap.forEach(doc => {
+                const userData = doc.data();
+                usersData[userData.username] = userData;
+            });
+
+            reportsSnap.forEach(doc => {
+                const data = doc.data();
+                const date = data.date ? data.date.toDate().toISOString().split("T")[0] : 'غير متوفر';
+                const username = data.username || 'غير متوفر';
+                const answers = data.answers || [];
+                const challengeName = usersData[username] && usersData[username].challenge;
+                const challengeStartDate = usersData[username] && usersData[username].challengeStartDate ? usersData[username].challengeStartDate.toDate() : null;
+                const challengeEndDate = usersData[username] && usersData[username].challengeEndDate ? usersData[username].challengeEndDate.toDate() : null;
+                const daysRemaining = challengeEndDate ? Math.ceil((challengeEndDate - new Date()) / (1000 * 3600 * 24)) : 'غير متوفر';
+
+                if (!selectedDate || date === selectedDate || date === today) { // تصفية بناءً على التاريخ
+                    reports.push({
+                        username,
+                        challengeName,
+                        daysRemaining,
+                        answers: answers.map(a => `<b>سؤال:</b> ${a.question || 'غير متوفر'}<br><b>إجابة:</b> ${a.answer || 'غير متوفر'}`).join("<br>"),
+                        date,
+                        id: doc.id
+                    });
+                }
+            });
+
+            if (reports.length === 0) {
+                reportsBody.innerHTML = "<tr><td colspan='6'>لا يوجد تقارير لهذا اليوم</td></tr>";
+                return;
+            }
+
+            reports.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            reports.forEach(report => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${report.username}</td>
+                    <td>${report.challengeName}</td>
+                    <td>${report.daysRemaining}</td>
+                    <td>${report.answers}</td>
+                    <td>${report.date}</td>
+                    <td>
+                        <button class="btn btn-success update-btn" data-id="${report.id}">تحديث</button>
+                        <button class="btn btn-danger delete-btn" data-id="${report.id}">حذف</button>
+                    </td>
+                `;
+                reportsBody.appendChild(row);
+            });
+
+            const updateButtons = document.querySelectorAll(".update-btn");
+            updateButtons.forEach(button => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    const pointsInput = prompt("أدخل النقاط الجديدة:");
+                    if (pointsInput) {
+                        await updateDoc(doc(db, "submissions", id), {
+                            points: parseInt(pointsInput)
+                        });
+                        alert("تم تحديث النقاط بنجاح!");
+                        displayReports();
+                    }
+                });
+            });
+
+            const deleteButtons = document.querySelectorAll(".delete-btn");
+            deleteButtons.forEach(button => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (confirm("هل أنت متأكد من أنك تريد حذف هذا العنصر؟")) {
+                        await deleteDoc(doc(db, "submissions", id));
+                        displayReports();
+                    }
+                });
+            });
+        }
+
+        // فلترة حسب التاريخ
+        document.getElementById("filterBtn").addEventListener("click", () => {
+            const selectedDate = document.getElementById("dateFilter").value;
+            selectedDate ? displayReports(selectedDate) : displayReports();
+        });
+
+        // عرض المستخدمين
+        async function displayUsers() {
+            const usersRef = collection(db, "users");
+            const usersSnap = await getDocs(usersRef);
+            const usersBody = document.getElementById("usersBody");
+            usersBody.innerHTML = "";
+
+            usersSnap.forEach(doc => {
+                const data = doc.data();
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${data.username}</td>
+                    <td>${data.points || 0}</td>
+                    <td>
+                        <button class="btn btn-success update-user-btn" data-id="${doc.id}">تحديث</button>
+                        <button class="btn btn-danger delete-user-btn" data-id="${doc.id}">حذف</button>
+                    </td>
+                `;
+                usersBody.appendChild(row);
+            });
+
+            const updateUserButtons = document.querySelectorAll(".update-user-btn");
+            updateUserButtons.forEach(button => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    const pointsInput = prompt("أدخل النقاط الجديدة:");
+                    if (pointsInput) {
+                        await updateDoc(doc(db, "users", id), {
+                            points: parseInt(pointsInput)
+                        });
+                        alert("تم تحديث النقاط بنجاح!");
+                        displayUsers();
+                    }
+                });
+            });
+
+            const deleteUserButtons = document.querySelectorAll(".delete-user-btn");
+            deleteUserButtons.forEach(button => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (confirm("هل أنت متأكد من أنك تريد حذف هذا المستخدم؟")) {
+                        await deleteDoc(doc(db, "users", id));
+                        displayUsers();
+                    }
+                });
+            });
+        }
+
+        document.getElementById("backToHomeBtn").addEventListener("click", () => {
+            window.location.href = "index.html";
+        });
+    </script>
+</body>
+</html>

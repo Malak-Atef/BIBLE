@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<br lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحديات - وقتي مع ربنا</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <!-- إضافة Font Awesome -->
+    <style>
+        body {
+            background-color: #f7f9fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Cairo', sans-serif;
+        }
+        #challengeTitle {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #challengeList {
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        #userChallenge {
+            font-size: 22px;
+            margin-bottom: 30px;
+            color: #0a0a0ab5;
+            background-color: rgba(4, 5, 5, 0.048);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        #userPoints {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .btn {
+            margin: 5px;
+        }
+        #nextBtn {
+            margin-top: 20px;
+        }
+        #challengeInfo {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #343a40;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2 id="userChallenge">صباح الفل <span id="userName"></span> <br><br>   <i class="fas fa-heart"></i> اختار تحدي و استمتع ب خلوتك اليومي مع الله والتزامك </h2> <!-- إضافة رمز قلب -->
+
+        <h2 id="userPoints">درجاتك الحالية: <span id="pointsValue">0</span> <i class="fas fa-star"></i></h2> <!-- إضافة رمز نجمة -->
+
+        <h3 id="challengeTitle">التحديات المتاحة: <i class="fas fa-bolt"></i></h3> <!-- إضافة رمز البرق -->
+
+        <div id="challengeList">
+            <button class="btn btn-secondary" id="noChallengeBtn"><i class="fas fa-cloud-sun"></i> لا أريد التحدي، سأخذ الخلوة اليوم فقط 15 درجة</button> <!-- إضافة رمز الشمس السحابية -->
+        </div>
+
+        <div id="challengeInfo" style="display: none;">
+            <p id="chosenChallenge"><i class="fas fa-trophy"></i></p> <!-- إضافة رمز الكأس -->
+            <p id="daysRemaining"><i class="fas fa-calendar-day"></i></p> <!-- إضافة رمز التقويم -->
+        </div>
+        <div id="failureMessage" style="display: none; color: red; font-size: 20px; margin-bottom: 20px;">
+            لقد انتهت مدة التحدي ولم يتم إكماله بنجاح. يمكنك بدء تحدي جديد الآن!
+        </div>
+        
+
+        <button id="nextBtn" class="btn btn-primary" style="display: none;"><i class="fas fa-arrow-right"></i> التالي</button> <!-- إضافة رمز السهم -->
+        <button id="logoutBtn" class="btn btn-danger"><i class="fas fa-sign-out-alt"></i> تسجيل خروج</button> <!-- إضافة رمز الخروج -->
+    </div>
+
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhn_98Cfaai7Et5H3qJwtZnJZPhOAnsLw",
+            authDomain: "bible-app-7c4d2.firebaseapp.com",
+            projectId: "bible-app-7c4d2",
+            storageBucket: "bible-app-7c4d2.appspot.com",
+            messagingSenderId: "127229574852",
+            appId: "1:127229574852:web:bf2732e3f2ee4c27ced391",
+            measurementId: "G-C8WF86ZSYY"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        console.log("تم الاتصال بـ Firestore بنجاح.");
+
+        async function checkChallengeStatus(userId) {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
+
+    // التحقق مما إذا كانت lastAnsweredDate موجودة
+    if (userData.lastAnsweredDate) {
+        const lastAnsweredDate = new Date(userData.lastAnsweredDate.seconds * 1000);
+        const currentDate = new Date();
+
+        // التحقق مما إذا كان قد مر أكثر من 24 ساعة (86400000 ميلي ثانية) منذ آخر إجابة
+        if (currentDate - lastAnsweredDate > 86400000) {
+            // تحديث حالة التحدي إلى "لم ينجح"
+            await updateDoc(userRef, {
+                challengeStatus: "لم ينجح",
+                challenge: "",
+                challengeStartDate: null,
+                challengeEndDate: null,
+                challengePoints: 0
+            });
+
+            // إظهار رسالة فشل للمستخدم
+            document.getElementById("failureMessage").style.display = "block";
+        }
+    }
+}
+
+
+        // تحميل بيانات المستخدم
+        async function loadUserData(userId) {
+            const userRef = doc(db, "users", userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                document.getElementById("userName").textContent = userData.username || "مستخدم";
+                document.getElementById("pointsValue").textContent = userData.points || 0;
+
+                if (userData.challengeStatus === "جاري") {
+                    const endDate = new Date(userData.challengeEndDate.seconds * 1000);
+                    const daysLeft = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
+
+                    if (endDate <= new Date()) {
+                        completeChallenge();  // إذا كان التحدي قد انتهى، نقوم بإكمال التحدي
+                    } else {
+                        document.getElementById("userChallenge").textContent = `اهلا  . ${userData.username || "مستخدم"}، أنت في تحدي ${userData.challenge} - استمر، بقي لك ${daysLeft} يومًا!`;
+                    }
+
+                    document.getElementById("challengeList").style.display = "none";
+                    document.getElementById("nextBtn").style.display = "block";
+                } else {
+                    document.getElementById("nextBtn").style.display = "none";
+                }
+            } else {
+                console.error("لا توجد بيانات للمستخدم");
+            }
+        }
+
+        // تحميل التحديات وترتيبها
+        async function loadChallenges() {
+            const challengesRef = collection(db, "challenges ");
+            try {
+                const challengesSnap = await getDocs(challengesRef);
+
+                if (challengesSnap.docs.length === 0) { 
+                    console.log("لم يتم العثور على تحديات في قاعدة البيانات.");
+                } else {
+                    console.log(`تم العثور على ${challengesSnap.docs.length} تحدي(ات).`);
+
+                    let challengeButtonsHtml = '';
+                    let challengesData = [];
+                    challengesSnap.forEach(doc => {
+                        const challengeData = doc.data();
+                        challengesData.push({ id: doc.id, ...challengeData });
+                    });
+
+                    // ترتيب التحديات حسب الأيام
+                    challengesData.sort((a, b) => a.days - b.days);
+
+                    // إنشاء الأزرار التحديات
+                    challengesData.forEach(challengeData => {
+                        challengeButtonsHtml += `
+                            <button class="btn btn-info" id="challenge${challengeData.id}Btn">
+                                ${challengeData.name}- ${challengeData.rewardPoints} درجة اضافيه
+                            </button>
+                        `;
+                    });
+
+                    document.getElementById("challengeList").innerHTML += challengeButtonsHtml;
+
+                    // إضافة الحدث لكل زر تحدي
+                    challengesData.forEach(challengeData => {
+                        document.getElementById(`challenge${challengeData.id}Btn`).addEventListener("click", () => startChallenge(challengeData));
+                    });
+                }
+
+document.getElementById("noChallengeBtn").addEventListener("click", startNoChallenge);
+
+async function startNoChallenge() {
+    const user = auth.currentUser;
+    if (user) {
+        const userRef = doc(db, "users", user.uid);
+
+        // تحديث حالة التحدي إلى "لا تحدي" (أي لا توجد تحديات حالياً)
+        await updateDoc(userRef, {
+            challengeStatus: "لا تحدي",
+            challenge: "",
+            challengeStartDate: null,
+            challengeEndDate: null
+        }).then(() => {
+            // بعد إتمام التحديث بنجاح، التوجيه إلى صفحة chapter.html
+            window.location.href = "chapter.html";
+        }).catch((error) => {
+            console.error("حدث خطأ أثناء التحديث: ", error);
+        });
+    }
+}
+            } catch (error) {
+                console.error("خطأ في تحميل التحديات:", error);
+            }
+        }
+
+      
+        // إتمام التحدي
+        async function completeChallenge() {
+            const user = auth.currentUser;
+            if (user) {
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
+                const userData = userSnap.data();
+
+                const endDate = new Date(userData.challengeEndDate.seconds * 1000);
+                const today = new Date();
+
+                if (endDate <= today) {
+                    const rewardPoints = parseInt(userData.challengePoints || 0);
+                    const totalPoints = (parseInt(userData.points || 0) + rewardPoints);
+
+                    await updateDoc(userRef, {
+                        points: totalPoints,
+                        challengeStatus: "مكتمل",
+                        challenge: "",
+                        challengeStartDate: null,
+                        challengeEndDate: null,
+                        challengePoints: 0
+                    });
+
+                    document.getElementById("challengeInfo").innerHTML = `
+                        <h3>تهانينا! لقد أكملت التحدي بنجاح!</h3>
+                        <p>لقد حصلت على ${rewardPoints} نقاط.</p>
+                    `;
+                    document.getElementById("nextBtn").style.display = "none";
+                    document.getElementById("challengeList").style.display = "block";
+                }
+            }
+        }
+ 
+
+
+
+        async function startChallenge(challengeData) {
+    const user = auth.currentUser;
+    if (user) {
+        const userRef = doc(db, "users", user.uid);
+        const challengeEndDate = new Date(new Date().setDate(new Date().getDate() + challengeData.days));
+        
+        // تحديث بيانات المستخدم مع تفاصيل التحدي
+        await updateDoc(userRef, {
+            challenge: challengeData.name,
+            challengeStatus: "جاري",
+            challengeStartDate: new Date(),
+            challengeEndDate: challengeEndDate,
+            challengePoints: challengeData.rewardPoints
+        }).then(() => {
+            // بعد إتمام التحديث بنجاح، التوجيه إلى صفحة chapter.html
+            window.location.href = "chapter.html";
+        }).catch((error) => {
+            console.error("حدث خطأ أثناء التحديث: ", error);
+        });
+    }
+    
+}
+
+
+        // تعديل في زر "التالي" لانتقال إلى صفحة chapter.html
+        document.getElementById("nextBtn").addEventListener("click", () => {
+            // تأكد من أن التوجيه يحدث فقط بعد التحديث
+            window.location.href = "chapter.html";
+        });
+
+        // تحميل البيانات عند التوثيق
+        onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        await checkChallengeStatus(user.uid); // التحقق من حالة التحدي وإظهار رسالة إذا لزم الأمر
+        loadUserData(user.uid); // تحميل بيانات المستخدم بعد التحقق من حالة التحدي
+        loadChallenges();
+    }
+    });
+
+
+        // تسجيل الخروج
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "index.html"; // إعادة التوجيه بعد الخروج
+            }).catch((error) => {
+                console.error("حدث خطأ أثناء تسجيل الخروج: ", error);
+            });
+        });
+
+        // في حالة اختيار عدم التحدي
+        document.getElementById("noChallengeBtn").addEventListener("click", startNoChallenge);
+    </script>
+</body>
+</html>
